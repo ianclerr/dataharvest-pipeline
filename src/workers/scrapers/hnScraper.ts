@@ -31,7 +31,7 @@ export async function scrapeHN() {
 
 for (let page = 1; page <= 1; page++) {
     const url = `${BASE_URL}/newest?p=${page}`;
-    logger.info({ module: "hnScraper", page }, "Scraping HN page");
+    logger.info({ module: "hnScraper", page }, "Scraping HN pages");
 
     try {
       const $ = await scrapePage(url);
