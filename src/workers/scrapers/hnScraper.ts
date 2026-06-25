@@ -16,9 +16,12 @@ function getStoryType(title: string): string {
 
 async function scrapePage(url: string) {
   await rateLimiter.throttle(HOST);
+  logger.info({ module: "hnScraper" }, `Fetching ${url}`);
   const { data } = await axios.get(url, {
     headers: { "User-Agent": "DataHarvestBot/1.0 (tech-assessment)" },
+    timeout: Number(process.env.REQUEST_TIMEOUT_MS) || 10000,
   });
+  logger.info({ module: "hnScraper" }, `Fetched ${url}`);
   return cheerio.load(data);
 }
 

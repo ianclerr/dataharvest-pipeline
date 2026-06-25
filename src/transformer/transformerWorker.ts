@@ -14,7 +14,7 @@ const concurrency = Number(process.env.TRANSFORMER_CONCURRENCY) || 5;
 
 export function startTransformerWorker() {
   const worker = new Worker(
-    "scrape:raw",
+    "scrape-raw",
     async (job: Job<JobDescriptor>) => {
       const { jobId, source, payload } = job.data;
 

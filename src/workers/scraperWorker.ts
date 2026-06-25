@@ -14,7 +14,7 @@ const concurrency = Number(process.env.SCRAPER_CONCURRENCY) || 3;
 
 export function startScraperWorker() {
   const worker = new Worker(
-    "scrape:pending",
+    "scrape-pending",
     async (job: Job<JobDescriptor>) => {
       const { jobId, source } = job.data;
 
