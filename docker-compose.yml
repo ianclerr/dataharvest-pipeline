@@ -9,11 +9,43 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/dataharvest
+      REDIS_URL: redis://redis:6379
+      SCRAPER_CONCURRENCY: 3
+      TRANSFORMER_CONCURRENCY: 5
+      PERSISTER_CONCURRENCY: 2
+      RATE_LIMIT_DELAY_MS: 3000
+      REQUEST_TIMEOUT_MS: 10000
+      BOOKS_CRON: "0 2 * * *"
+      HN_CRON: "*/15 * * * *"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   pgdata:

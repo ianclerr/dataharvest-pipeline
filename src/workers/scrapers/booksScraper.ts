@@ -15,33 +15,36 @@ async function fetchPage(url: string) {
   await rateLimiter.throttle(HOST);
   const { data } = await axios.get(url, {
     headers: { "User-Agent": "DataHarvestBot/1.0 (tech-assessment)" },
+    timeout: Number(process.env.REQUEST_TIMEOUT_MS) || 10000,
   });
   return cheerio.load(data);
 }
 
 async function scrapeBookDetail(url: string) {
   const $ = await fetchPage(url);
+
   const upc = $("table tr").filter((_, el) =>
     $(el).find("th").text() === "UPC"
   ).find("td").text();
 
   const description = $("#product_description ~ p").text().trim() || null;
+
   const numReviews = parseInt(
     $("table tr").filter((_, el) =>
       $(el).find("th").text() === "Number of reviews"
     ).find("td").text() || "0"
   );
 
-  return { upc, description, numReviews };
+  const category = $("ul.breadcrumb li").eq(2).find("a").text().trim() || null;
+
+  return { upc, description, numReviews, category };
 }
 
 export async function scrapeBooks() {
   const books = [];
 
   for (let page = 1; page <= 5; page++) {
-    const url = page === 1
-      ? `${BASE_URL}/catalogue/page-${page}.html`
-      : `${BASE_URL}/catalogue/page-${page}.html`;
+    const url = `${BASE_URL}/catalogue/page-${page}.html`;
 
     logger.info({ module: "booksScraper", page }, "Scraping page");
     const $ = await fetchPage(url);

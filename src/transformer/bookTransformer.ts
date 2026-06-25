@@ -8,6 +8,7 @@ export const BookSchema = z.object({
   upc: z.string(),
   description: z.string().nullable(),
   numReviews: z.number(),
+  category: z.string().nullable(),
 });
 
 export type Book = z.infer<typeof BookSchema>;

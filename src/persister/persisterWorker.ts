@@ -5,6 +5,7 @@ import { JobDescriptor } from "../scheduler/jobFactory";
 import { Book } from "../transformer/bookTransformer";
 import { HNStory } from "../transformer/hnTransformer";
 import logger from "../logger";
+import db from "../db/client";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -30,6 +31,10 @@ export function startPersisterWorker() {
       } else {
         throw new Error(`Unknown source: ${source}`);
       }
+
+      await db("scrape_jobs")
+        .where("id", jobId)
+        .update({ status: "done", completed_at: new Date() });
 
       logger.info(
         { module: "persisterWorker", jobId, source },

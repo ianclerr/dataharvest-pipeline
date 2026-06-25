@@ -11,6 +11,7 @@ export async function upsertBooks(books: Book[]) {
         title: book.title,
         price_gbp: book.price_gbp,
         rating: book.rating,
+        category: book.category,
         available: book.available,
         description: book.description,
         num_reviews: book.numReviews,
