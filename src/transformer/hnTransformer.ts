@@ -6,6 +6,7 @@ export const HNStorySchema = z.object({
   url: z.string().nullable(),
   score: z.number(),
   author: z.string(),
+  age_text: z.string().optional(),
   comment_count: z.number(),
   story_type: z.enum(["story", "ask", "show", "job"]),
 });
