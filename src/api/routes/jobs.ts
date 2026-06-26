@@ -8,7 +8,6 @@ import logger from "../../logger";
 
 const router = Router();
 
-// POST /api/v1/jobs/trigger
 router.post("/trigger", async (req, res) => {
   try {
     const { source } = req.body;
@@ -30,12 +29,12 @@ router.post("/trigger", async (req, res) => {
 
     logger.info({ module: "jobs", jobId: job.jobId, source }, "Job triggered manually");
     return res.status(201).json({ jobId: job.jobId, source, status: "pending" });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return res.status(500).json({ error: message });
   }
 });
 
-// GET /api/v1/jobs
 router.get("/", async (req, res) => {
   try {
     const { status, source, limit = 20, offset = 0 } = req.query;
@@ -47,34 +46,34 @@ router.get("/", async (req, res) => {
 
     const jobs = await query;
     return res.json(jobs);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return res.status(500).json({ error: message });
   }
 });
 
-// GET /api/v1/jobs/dlq
-router.get("/dlq", async (req, res) => {
+router.get("/dlq", async (_req, res) => {
   try {
     const jobs = await dlqQueue.getJobs(["waiting", "failed"], 0, 49);
     return res.json(jobs.map((j) => ({ id: j.id, data: j.data })));
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return res.status(500).json({ error: message });
   }
 });
 
-// DELETE /api/v1/jobs/dlq/:jobId
 router.delete("/dlq/:jobId", async (req, res) => {
   try {
     const job = await dlqQueue.getJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: "Job not found" });
     await job.remove();
     return res.json({ message: "Job removed from DLQ" });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return res.status(500).json({ error: message });
   }
 });
 
-// POST /api/v1/jobs/dlq/:jobId/retry
 router.post("/dlq/:jobId/retry", async (req, res) => {
   try {
     const job = await dlqQueue.getJob(req.params.jobId);
@@ -100,19 +99,20 @@ router.post("/dlq/:jobId/retry", async (req, res) => {
     await pendingQueue.add("retry-job", retryJob, { priority, ...SCRAPER_JOB_OPTS });
     await job.remove();
     return res.json({ message: "Job re-queued for processing", jobId: retryJob.jobId });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return res.status(500).json({ error: message });
   }
 });
 
-// GET /api/v1/jobs/:id
 router.get("/:id", async (req, res) => {
   try {
     const job = await db("scrape_jobs").where("id", req.params.id).first();
     if (!job) return res.status(404).json({ error: "Job not found" });
     return res.json(job);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return res.status(500).json({ error: message });
   }
 });
 

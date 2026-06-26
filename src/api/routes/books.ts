@@ -17,8 +17,9 @@ router.get("/", async (req, res) => {
 
     const books = await query;
     return res.json(books);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return res.status(500).json({ error: message });
   }
 });
 
@@ -28,8 +29,9 @@ router.get("/:upc", async (req, res) => {
     const book = await db("books").where("upc", req.params.upc).first();
     if (!book) return res.status(404).json({ error: "Book not found" });
     return res.json(book);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return res.status(500).json({ error: message });
   }
 });
 
