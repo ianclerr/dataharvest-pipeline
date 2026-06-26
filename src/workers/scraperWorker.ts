@@ -1,5 +1,6 @@
 import { Worker, Job } from "bullmq";
 import { rawQueue } from "../queue/queues";
+import { TRANSFORMER_JOB_OPTS } from "../queue/jobOptions";
 import { scrapeBooks } from "./scrapers/booksScraper";
 import { scrapeHN } from "./scrapers/hnScraper";
 import { moveToDLQ } from "../queue/dlq";
@@ -33,7 +34,7 @@ export function startScraperWorker() {
       await rawQueue.add(
         "raw-data",
         { ...job.data, payload, attempt: job.data.attempt + 1 },
-        { priority: job.opts.priority }
+        { priority: job.opts.priority, ...TRANSFORMER_JOB_OPTS }
       );
 
       logger.info({ module: "scraperWorker", jobId, source }, "Job completed");

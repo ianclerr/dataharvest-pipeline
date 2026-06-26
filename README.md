@@ -228,7 +228,7 @@ curl http://localhost:3000/api/v1/stories/<hn_item_id>
 curl http://localhost:3000/api/v1/metrics
 
 # Health check (DB + Redis connectivity)
-curl http://localhost:3000/api/v1/metrics/health
+curl http://localhost:3000/api/v1/health
 ```
 
 ---
@@ -240,15 +240,20 @@ curl http://localhost:3000/api/v1/metrics/health
 curl http://localhost:3000/api/v1/metrics
 ```
 
-Response includes per-queue stats:
+Response includes per-queue depth, last-hour completed/failed/pending counts, average processing latency, and last successful run per source:
 
 ```json
 {
   "queues": {
-    "scrape:pending": { "active": 0, "completed": 20, "failed": 0, "waiting": 0 },
-    "scrape:raw":     { "active": 0, "completed": 20, "failed": 0, "waiting": 0 },
-    "scrape:processed": { "active": 0, "completed": 20, "failed": 0, "waiting": 0 },
-    "scrape:dlq":     { "active": 0, "completed": 0,  "failed": 0, "waiting": 0 }
+    "scrape:pending": {
+      "depth": { "active": 0, "completed": 20, "failed": 0, "waiting": 0 },
+      "lastHour": { "completed": 5, "failed": 0, "pending": 0, "averageProcessingLatencyMs": 1200 }
+    }
+  },
+  "averageProcessingLatencyMs": 950,
+  "lastSuccessfulRunBySource": {
+    "books": "2026-06-26T02:00:00.000Z",
+    "hackernews": "2026-06-26T02:15:00.000Z"
   }
 }
 ```
@@ -281,11 +286,9 @@ Migrations are managed with Knex.js and live in `src/db/migrations/`.
 
 **Book category scraping:** A small number of books return `"Add a comment"` as their category due to inconsistent breadcrumb structure on the detail pages. These are edge cases in the source site's HTML.
 
-**Metrics endpoint:** Currently exposes BullMQ queue depth and counts. Average latency and last-run timestamp per source are not yet implemented.
+**Metrics endpoint:** Exposes BullMQ queue depth, last-hour throughput, average processing latency, and last successful run timestamp per source (from `scrape_jobs`).
 
-**No tests:** Unit and integration tests were not implemented within the assessment timeframe. The transformer validation logic (Zod schemas) is the primary candidate for unit tests.
-
-**Single-page HN scrape:** Due to rate limiting during development, only page 1 of HN newest was consistently scrapeable. Page 2 is implemented but may 429 depending on IP reputation.
+**Tests:** Unit tests cover Zod validation in `bookTransformer` and `hnTransformer`. An integration test validates the scraper→transformer data contract.
 
 **`scrape:dlq` queue name:** BullMQ does not allow `:` in queue names by default in some configurations. Queue names use hyphens internally (`scrape-pending`, etc.) but are aliased to colon notation in the API responses for spec compliance.
 

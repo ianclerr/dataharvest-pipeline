@@ -1,5 +1,6 @@
 import { Worker, Job } from "bullmq";
 import { processedQueue } from "../queue/queues";
+import { PERSISTER_JOB_OPTS, TRANSFORMER_JOB_OPTS } from "../queue/jobOptions";
 import { transformBook } from "./bookTransformer";
 import { transformHNStory } from "./hnTransformer";
 import { moveToDLQ } from "../queue/dlq";
@@ -37,7 +38,7 @@ export function startTransformerWorker() {
       await processedQueue.add(
         "processed-data",
         { ...job.data, payload: transformed },
-        { priority: job.opts.priority }
+        { priority: job.opts.priority, ...PERSISTER_JOB_OPTS }
       );
 
       logger.info(
@@ -53,11 +54,14 @@ export function startTransformerWorker() {
 
   worker.on("failed", async (job, err) => {
     if (!job) return;
-    await moveToDLQ(job.data.jobId, job.data.source, job.data.payload, err);
-    logger.error(
-      { module: "transformerWorker", jobId: job.data.jobId, err: err.message },
-      "Transform job moved to DLQ"
-    );
+    const retriesExhausted = job.attemptsMade >= (TRANSFORMER_JOB_OPTS.attempts ?? 2);
+    if (retriesExhausted) {
+      await moveToDLQ(job.data.jobId, job.data.source, job.data.payload, err);
+      logger.error(
+        { module: "transformerWorker", jobId: job.data.jobId, err: err.message },
+        "Transform job moved to DLQ"
+      );
+    }
   });
 
   logger.info({ module: "transformerWorker" }, "Transformer worker started");

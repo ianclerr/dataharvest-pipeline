@@ -1,6 +1,7 @@
 import { Router } from "express";
 import db from "../../db/client";
 import { pendingQueue, dlqQueue } from "../../queue/queues";
+import { SCRAPER_JOB_OPTS } from "../../queue/jobOptions";
 import { createJobDescriptor } from "../../scheduler/jobFactory";
 import logger from "../../logger";
 
@@ -16,7 +17,7 @@ router.post("/trigger", async (req, res) => {
 
     const job = createJobDescriptor(source);
     const priority = source === "hackernews" ? 1 : 2;
-    await pendingQueue.add(`scrape-${source}`, job, { priority });
+    await pendingQueue.add(`scrape-${source}`, job, { priority, ...SCRAPER_JOB_OPTS });
 
     await db("scrape_jobs").insert({
       id: job.jobId,
@@ -76,9 +77,25 @@ router.post("/dlq/:jobId/retry", async (req, res) => {
   try {
     const job = await dlqQueue.getJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: "Job not found" });
-    await pendingQueue.add("retry-job", job.data, { priority: 1 });
+
+    const { jobId, source, payload } = job.data as {
+      jobId: string;
+      source: "books" | "hackernews";
+      payload?: Record<string, unknown>;
+    };
+    const priority = source === "hackernews" ? 1 : 2;
+    const descriptor = createJobDescriptor(source);
+    const retryJob = {
+      jobId: jobId || descriptor.jobId,
+      source,
+      createdAt: new Date().toISOString(),
+      payload: payload ?? {},
+      attempt: 1,
+    };
+
+    await pendingQueue.add("retry-job", retryJob, { priority, ...SCRAPER_JOB_OPTS });
     await job.remove();
-    return res.json({ message: "Job re-queued for processing" });
+    return res.json({ message: "Job re-queued for processing", jobId: retryJob.jobId });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

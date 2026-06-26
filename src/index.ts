@@ -32,7 +32,7 @@ async function main() {
   });
 
   async function shutdown() {
-    logger.info({ module: "index" }, "Shutting down...");
+    logger.info({ module: "index" }, "Shutting down....");
 
     server.close();
 

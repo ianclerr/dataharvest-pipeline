@@ -1,6 +1,7 @@
 import { Worker, Job } from "bullmq";
 import { upsertBooks, upsertStories } from "./upsert";
 import { moveToDLQ } from "../queue/dlq";
+import { PERSISTER_JOB_OPTS } from "../queue/jobOptions";
 import { JobDescriptor } from "../scheduler/jobFactory";
 import { Book } from "../transformer/bookTransformer";
 import { HNStory } from "../transformer/hnTransformer";
@@ -49,7 +50,7 @@ export function startPersisterWorker() {
 
   worker.on("failed", async (job, err) => {
     if (!job) return;
-    const retriesExhausted = job.attemptsMade >= 5;
+    const retriesExhausted = job.attemptsMade >= (PERSISTER_JOB_OPTS.attempts ?? 5);
     if (retriesExhausted) {
       await moveToDLQ(job.data.jobId, job.data.source, job.data.payload, err);
       logger.error(
