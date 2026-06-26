@@ -51,7 +51,7 @@ Failed jobs exceeding retry budget move to `scrape:dlq`.
 
 ## Tech Stack
 
-- **Runtime:** Node.js v22 + TypeScript (strict)
+- **Runtime:** Node.js v20 + TypeScript (strict)
 - **Queue:** BullMQ + Redis
 - **Database:** PostgreSQL + Knex.js migrations
 - **API:** Express.js
@@ -66,7 +66,7 @@ Failed jobs exceeding retry budget move to `scrape:dlq`.
 
 ### Prerequisites
 
-- Node.js v22+
+- Node.js v20+
 - PostgreSQL 16 running on port 5432
 - Redis 7 running on port 6379
 
@@ -286,7 +286,7 @@ Migrations are managed with Knex.js and live in `src/db/migrations/`.
 
 **Book category scraping:** A small number of books return `"Add a comment"` as their category due to inconsistent breadcrumb structure on the detail pages. These are edge cases in the source site's HTML.
 
-**`scrape:dlq` queue name:** BullMQ queue names use hyphens internally (`scrape-pending`, etc.) but are aliased to colon notation in the API responses for spec compliance.
+**Queue naming convention:** BullMQ restricts queue names from containing colons (`:`). The spec defines queues as `scrape:pending`, `scrape:raw`, `scrape:processed`, and `scrape:dlq`, but these are implemented internally as `scrape-pending`, `scrape-raw`, `scrape-processed`, and `scrape-dlq` to comply with BullMQ's constraint. The API responses and metrics endpoint display the colon notation as aliases to match the spec. This is a known BullMQ limitation documented in their source code (`queue-base.js:35`).
 
 ---
 
