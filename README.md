@@ -84,8 +84,8 @@ npm install
 cp .env.example .env
 # Edit .env with your DB and Redis credentials
 
-# 4. Run database migrations
-npx knex migrate:latest --knexfile knexfile.ts
+# 4. Run migrations (first time only)
+docker compose exec app npx knex migrate:latest --knexfile knexfile.ts
 
 # 5. Start the application
 npx tsx src/index.ts
@@ -139,7 +139,7 @@ docker compose down
 | `SCRAPER_CONCURRENCY` | `3` | Max concurrent scraper workers |
 | `TRANSFORMER_CONCURRENCY` | `5` | Max concurrent transformer workers |
 | `PERSISTER_CONCURRENCY` | `2` | Max concurrent persister workers |
-| `RATE_LIMIT_DELAY_MS` | `3000` | Minimum delay between HTTP requests to the same host (ms) |
+| `RATE_LIMIT_DELAY_MS` | `1000` | Minimum delay between HTTP requests to the same host (ms) |
 | `REQUEST_TIMEOUT_MS` | `10000` | HTTP request timeout (ms) |
 | `BOOKS_CRON` | `0 2 * * *` | Cron schedule for Books scrape (default: 02:00 UTC daily) |
 | `HN_CRON` | `*/15 * * * *` | Cron schedule for HN scrape (default: every 15 minutes) |

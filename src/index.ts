@@ -9,16 +9,21 @@ import { startPersisterWorker } from "./persister/persisterWorker";
 import db from "./db/client";
 import logger from "./logger";
 
-process.on("unhandledRejection", (reason) => {
+const PORT = process.env.PORT || 3000;
+
+let shutdownFn: (() => Promise<void>) | null = null;
+
+process.on("unhandledRejection", async (reason) => {
   logger.error({ module: "index", reason }, "Unhandled rejection");
-  process.exit(1);
-});
-process.on("uncaughtException", (err) => {
-  logger.error({ module: "index", err: err.message }, "Uncaught exception");
-  process.exit(1);
+  if (shutdownFn) await shutdownFn();
+  else process.exit(1);
 });
 
-const PORT = process.env.PORT || 3000;
+process.on("uncaughtException", async (err) => {
+  logger.error({ module: "index", err: err.message }, "Uncaught exception");
+  if (shutdownFn) await shutdownFn();
+  else process.exit(1);
+});
 
 async function main() {
   const scraperWorker = startScraperWorker();
@@ -30,8 +35,8 @@ async function main() {
     logger.info({ module: "index" }, `Server running on port ${PORT}`);
   });
 
-  async function shutdown() {
-    logger.info({ module: "index" }, "Shutting down....");
+  shutdownFn = async () => {
+    logger.info({ module: "index" }, "Shutting down...");
 
     server.close();
 
@@ -47,10 +52,10 @@ async function main() {
     await db.destroy();
     logger.info({ module: "index" }, "Shutdown complete");
     process.exit(0);
-  }
+  };
 
-  process.on("SIGTERM", shutdown);
-  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdownFn);
+  process.on("SIGINT", shutdownFn);
 }
 
 main();

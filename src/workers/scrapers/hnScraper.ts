@@ -54,6 +54,12 @@ export async function scrapeHN() {
         const commentCount = parseInt(commentText) || 0;
         const storyType = getStoryType(title);
 
+        // Skip job listings as per spec
+        if (storyType === "job") {
+          logger.info({ module: "hnScraper", hnItemId, title }, "Skipping job listing");
+          continue;
+        }
+
         stories.push({
           hn_item_id: hnItemId,
           title,

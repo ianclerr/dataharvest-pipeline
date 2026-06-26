@@ -32,6 +32,13 @@ async function getQueueMetricsLastHour(queue: Queue, name: string) {
       ? Math.round(latencies.reduce((sum, ms) => sum + ms, 0) / latencies.length)
       : null;
 
+  const total = recentCompleted.length + recentFailed.length;
+  const errorRate = total > 0
+    ? parseFloat((recentFailed.length / total).toFixed(4))
+    : 0;
+
+  const throughput = recentCompleted.length;
+
   return {
     name,
     depth: counts,
@@ -39,12 +46,13 @@ async function getQueueMetricsLastHour(queue: Queue, name: string) {
       completed: recentCompleted.length,
       failed: recentFailed.length,
       pending: (counts.waiting ?? 0) + (counts.active ?? 0),
+      throughput,
+      errorRate,
       averageProcessingLatencyMs,
     },
   };
 }
 
-// GET /api/v1/metrics
 router.get("/", async (_req, res) => {
   try {
     const [pending, raw, processed, dlq, lastRuns] = await Promise.all([
