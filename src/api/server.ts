@@ -4,10 +4,12 @@ import booksRouter from "./routes/books";
 import storiesRouter from "./routes/stories";
 import metricsRouter from "./routes/metrics";
 import healthRouter from "./routes/health";
+import { requestLogger } from "./middleware/requestLogger";
 import logger from "../logger";
 
 const app = express();
 app.use(express.json());
+app.use(requestLogger);
 
 app.use("/api/v1/jobs", jobsRouter);
 app.use("/api/v1/books", booksRouter);
