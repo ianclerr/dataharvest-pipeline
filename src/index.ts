@@ -11,7 +11,6 @@ import logger from "./logger";
 
 process.on("unhandledRejection", (reason) => {
   logger.error({ module: "index", reason }, "Unhandled rejection");
-  console.error("FULL ERROR:", reason);
   process.exit(1);
 });
 process.on("uncaughtException", (err) => {

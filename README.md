@@ -286,11 +286,7 @@ Migrations are managed with Knex.js and live in `src/db/migrations/`.
 
 **Book category scraping:** A small number of books return `"Add a comment"` as their category due to inconsistent breadcrumb structure on the detail pages. These are edge cases in the source site's HTML.
 
-**Metrics endpoint:** Exposes BullMQ queue depth, last-hour throughput, average processing latency, and last successful run timestamp per source (from `scrape_jobs`).
-
-**Tests:** Unit tests cover Zod validation in `bookTransformer` and `hnTransformer`. An integration test validates the scraper→transformer data contract.
-
-**`scrape:dlq` queue name:** BullMQ does not allow `:` in queue names by default in some configurations. Queue names use hyphens internally (`scrape-pending`, etc.) but are aliased to colon notation in the API responses for spec compliance.
+**`scrape:dlq` queue name:** BullMQ queue names use hyphens internally (`scrape-pending`, etc.) but are aliased to colon notation in the API responses for spec compliance.
 
 ---
 

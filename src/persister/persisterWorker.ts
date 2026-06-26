@@ -2,11 +2,11 @@ import { Worker, Job } from "bullmq";
 import { upsertBooks, upsertStories } from "./upsert";
 import { moveToDLQ } from "../queue/dlq";
 import { PERSISTER_JOB_OPTS } from "../queue/jobOptions";
-import { JobDescriptor } from "../scheduler/jobFactory";
+import { parseJobDescriptor, JobDescriptor } from "../scheduler/jobFactory";
+import { markJobDone } from "../db/jobStatus";
 import { Book } from "../transformer/bookTransformer";
 import { HNStory } from "../transformer/hnTransformer";
 import logger from "../logger";
-import db from "../db/client";
 
 const connection = {
   url: process.env.REDIS_URL || "redis://localhost:6379",
@@ -18,7 +18,8 @@ export function startPersisterWorker() {
   const worker = new Worker(
     "scrape-processed",
     async (job: Job<JobDescriptor>) => {
-      const { jobId, source, payload } = job.data;
+      const descriptor = parseJobDescriptor(job.data);
+      const { jobId, source, payload } = descriptor;
 
       logger.info(
         { module: "persisterWorker", jobId, source },
@@ -33,9 +34,7 @@ export function startPersisterWorker() {
         throw new Error(`Unknown source: ${source}`);
       }
 
-      await db("scrape_jobs")
-        .where("id", jobId)
-        .update({ status: "done", completed_at: new Date() });
+      await markJobDone(jobId, source);
 
       logger.info(
         { module: "persisterWorker", jobId, source },
@@ -50,12 +49,27 @@ export function startPersisterWorker() {
 
   worker.on("failed", async (job, err) => {
     if (!job) return;
-    const retriesExhausted = job.attemptsMade >= (PERSISTER_JOB_OPTS.attempts ?? 5);
+    const { jobId, source } = job.data;
+    const maxAttempts = PERSISTER_JOB_OPTS.attempts ?? 5;
+    const retriesExhausted = job.attemptsMade >= maxAttempts;
+
     if (retriesExhausted) {
-      await moveToDLQ(job.data.jobId, job.data.source, job.data.payload, err);
+      await moveToDLQ(jobId, source, job.data.payload, err);
       logger.error(
-        { module: "persisterWorker", jobId: job.data.jobId, err: err.message },
-        "Persist job moved to DLQ"
+        { module: "persisterWorker", jobId, source, err: err.message },
+        "Persist job failed permanently"
+      );
+    } else {
+      logger.warn(
+        {
+          module: "persisterWorker",
+          jobId,
+          source,
+          attempt: job.attemptsMade,
+          maxAttempts,
+          err: err.message,
+        },
+        "Persist job failed, will retry"
       );
     }
   });

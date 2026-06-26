@@ -2,7 +2,8 @@ import { Router } from "express";
 import db from "../../db/client";
 import { pendingQueue, dlqQueue } from "../../queue/queues";
 import { SCRAPER_JOB_OPTS } from "../../queue/jobOptions";
-import { createJobDescriptor } from "../../scheduler/jobFactory";
+import { createJobDescriptor, parseJobDescriptor } from "../../scheduler/jobFactory";
+import { resetJobForRetry } from "../../db/jobStatus";
 import logger from "../../logger";
 
 const router = Router();
@@ -16,6 +17,7 @@ router.post("/trigger", async (req, res) => {
     }
 
     const job = createJobDescriptor(source);
+    parseJobDescriptor(job);
     const priority = source === "hackernews" ? 1 : 2;
     await pendingQueue.add(`scrape-${source}`, job, { priority, ...SCRAPER_JOB_OPTS });
 
@@ -92,7 +94,9 @@ router.post("/dlq/:jobId/retry", async (req, res) => {
       payload: payload ?? {},
       attempt: 1,
     };
+    parseJobDescriptor(retryJob);
 
+    await resetJobForRetry(retryJob.jobId, source);
     await pendingQueue.add("retry-job", retryJob, { priority, ...SCRAPER_JOB_OPTS });
     await job.remove();
     return res.json({ message: "Job re-queued for processing", jobId: retryJob.jobId });

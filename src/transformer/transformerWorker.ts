@@ -4,7 +4,7 @@ import { PERSISTER_JOB_OPTS, TRANSFORMER_JOB_OPTS } from "../queue/jobOptions";
 import { transformBook } from "./bookTransformer";
 import { transformHNStory } from "./hnTransformer";
 import { moveToDLQ } from "../queue/dlq";
-import { JobDescriptor } from "../scheduler/jobFactory";
+import { parseJobDescriptor, JobDescriptor } from "../scheduler/jobFactory";
 import logger from "../logger";
 
 const connection = {
@@ -17,14 +17,15 @@ export function startTransformerWorker() {
   const worker = new Worker(
     "scrape-raw",
     async (job: Job<JobDescriptor>) => {
-      const { jobId, source, payload } = job.data;
+      const descriptor = parseJobDescriptor(job.data);
+      const { jobId, source, payload } = descriptor;
 
       logger.info(
         { module: "transformerWorker", jobId, source },
         "Transforming job"
       );
 
-      const items = (payload as unknown) as unknown[];
+      const items = payload as unknown[];
       let transformed;
 
       if (source === "books") {
@@ -37,7 +38,7 @@ export function startTransformerWorker() {
 
       await processedQueue.add(
         "processed-data",
-        { ...job.data, payload: transformed },
+        { ...descriptor, payload: transformed },
         { priority: job.opts.priority, ...PERSISTER_JOB_OPTS }
       );
 
@@ -54,12 +55,27 @@ export function startTransformerWorker() {
 
   worker.on("failed", async (job, err) => {
     if (!job) return;
-    const retriesExhausted = job.attemptsMade >= (TRANSFORMER_JOB_OPTS.attempts ?? 2);
+    const { jobId, source } = job.data;
+    const maxAttempts = TRANSFORMER_JOB_OPTS.attempts ?? 2;
+    const retriesExhausted = job.attemptsMade >= maxAttempts;
+
     if (retriesExhausted) {
-      await moveToDLQ(job.data.jobId, job.data.source, job.data.payload, err);
+      await moveToDLQ(jobId, source, job.data.payload, err);
       logger.error(
-        { module: "transformerWorker", jobId: job.data.jobId, err: err.message },
-        "Transform job moved to DLQ"
+        { module: "transformerWorker", jobId, source, err: err.message },
+        "Transform job failed permanently"
+      );
+    } else {
+      logger.warn(
+        {
+          module: "transformerWorker",
+          jobId,
+          source,
+          attempt: job.attemptsMade,
+          maxAttempts,
+          err: err.message,
+        },
+        "Transform job failed, will retry"
       );
     }
   });

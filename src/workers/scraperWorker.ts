@@ -1,10 +1,15 @@
 import { Worker, Job } from "bullmq";
 import { rawQueue } from "../queue/queues";
-import { TRANSFORMER_JOB_OPTS } from "../queue/jobOptions";
+import {
+  SCRAPER_JOB_OPTS,
+  scraperBackoffDelay,
+  TRANSFORMER_JOB_OPTS,
+} from "../queue/jobOptions";
 import { scrapeBooks } from "./scrapers/booksScraper";
 import { scrapeHN } from "./scrapers/hnScraper";
 import { moveToDLQ } from "../queue/dlq";
-import { JobDescriptor } from "../scheduler/jobFactory";
+import { parseJobDescriptor, JobDescriptor } from "../scheduler/jobFactory";
+import { markJobRunning } from "../db/jobStatus";
 import logger from "../logger";
 
 const connection = {
@@ -17,8 +22,10 @@ export function startScraperWorker() {
   const worker = new Worker(
     "scrape-pending",
     async (job: Job<JobDescriptor>) => {
-      const { jobId, source } = job.data;
+      const descriptor = parseJobDescriptor(job.data);
+      const { jobId, source } = descriptor;
 
+      await markJobRunning(jobId, source);
       logger.info({ module: "scraperWorker", jobId, source }, "Job started");
 
       let payload;
@@ -33,7 +40,7 @@ export function startScraperWorker() {
 
       await rawQueue.add(
         "raw-data",
-        { ...job.data, payload, attempt: job.data.attempt + 1 },
+        { ...descriptor, payload, attempt: descriptor.attempt + 1 },
         { priority: job.opts.priority, ...TRANSFORMER_JOB_OPTS }
       );
 
@@ -43,17 +50,35 @@ export function startScraperWorker() {
       connection,
       concurrency,
       limiter: { max: concurrency, duration: 1000 },
+      settings: {
+        backoffStrategy: scraperBackoffDelay,
+      },
     }
   );
 
   worker.on("failed", async (job, err) => {
     if (!job) return;
-    const retriesExhausted = job.attemptsMade >= (job.opts.attempts || 3);
+    const { jobId, source } = job.data;
+    const maxAttempts = job.opts.attempts ?? SCRAPER_JOB_OPTS.attempts;
+    const retriesExhausted = job.attemptsMade >= maxAttempts;
+
     if (retriesExhausted) {
-      await moveToDLQ(job.data.jobId, job.data.source, job.data.payload, err);
+      await moveToDLQ(jobId, source, job.data.payload, err);
       logger.error(
-        { module: "scraperWorker", jobId: job.data.jobId, err: err.message },
-        "Job moved to DLQ"
+        { module: "scraperWorker", jobId, source, err: err.message },
+        "Job failed permanently"
+      );
+    } else {
+      logger.warn(
+        {
+          module: "scraperWorker",
+          jobId,
+          source,
+          attempt: job.attemptsMade,
+          maxAttempts,
+          err: err.message,
+        },
+        "Job failed, will retry"
       );
     }
   });
