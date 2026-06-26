@@ -30,8 +30,9 @@ describe("bookTransformer", () => {
     expect(() => BookSchema.parse(invalid)).toThrow();
   });
 
-  it("rejects rating below 1", () => {
-    expect(() => transformBook({ ...validBook, rating: 0 })).toThrow();
+  it("converts rating 0 to minimum rating of 1", () => {
+    const result = transformBook({ ...validBook, rating: 0 });
+    expect(result.rating).toBe(1);
   });
 
   it("rejects rating above 5", () => {
