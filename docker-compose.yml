@@ -25,10 +25,11 @@ services:
       timeout: 5s
       retries: 5
 
-  app:
+app:
     build: .
     ports:
       - "3000:3000"
+    command: sh -c "npx knex migrate:latest --knexfile knexfile.ts && node dist/index.js"
     environment:
       PORT: 3000
       NODE_ENV: production
@@ -37,7 +38,7 @@ services:
       SCRAPER_CONCURRENCY: 3
       TRANSFORMER_CONCURRENCY: 5
       PERSISTER_CONCURRENCY: 2
-      RATE_LIMIT_DELAY_MS: 3000
+      RATE_LIMIT_DELAY_MS: 1000
       REQUEST_TIMEOUT_MS: 10000
       BOOKS_CRON: "0 2 * * *"
       HN_CRON: "*/15 * * * *"

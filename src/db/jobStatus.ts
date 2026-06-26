@@ -3,15 +3,14 @@ import logger from "../logger";
 import type { JobSource } from "../scheduler/jobFactory";
 
 export async function markJobRunning(jobId: string, source?: JobSource) {
-  const updated = await db("scrape_jobs").where("id", jobId).update({ status: "running" });
+  const updated = await db("scrape_jobs").where("id", jobId).update({ status: "processing" });
   if (updated > 0) {
     logger.info(
-      { module: "jobStatus", jobId, source, status: "running" },
+      { module: "jobStatus", jobId, source, status: "processing" },
       "Job state transition"
     );
   }
 }
-
 export async function markJobFailed(jobId: string, error: Error, source?: JobSource) {
   await db("scrape_jobs")
     .where("id", jobId)

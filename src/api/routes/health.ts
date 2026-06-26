@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { createClient } from "redis";
 import db from "../../db/client";
+import { pendingQueue, rawQueue, processedQueue } from "../../queue/queues";
 import logger from "../../logger";
 
 const router = Router();
@@ -16,7 +17,22 @@ router.get("/", async (_req, res) => {
     await client.ping();
     await client.disconnect();
 
-    return res.json({ status: "ok", db: "connected", redis: "connected" });
+    const [pending, raw, processed] = await Promise.all([
+      pendingQueue.getJobCounts(),
+      rawQueue.getJobCounts(),
+      processedQueue.getJobCounts(),
+    ]);
+
+    return res.json({
+      status: "ok",
+      db: "connected",
+      redis: "connected",
+      queues: {
+        "scrape:pending": pending,
+        "scrape:raw": raw,
+        "scrape:processed": processed,
+      },
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error({ module: "health", err: message }, "Health check failed");
