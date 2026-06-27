@@ -188,6 +188,16 @@ curl -X POST http://localhost:3000/api/v1/jobs/dlq/<jobId>/retry
 curl -X DELETE http://localhost:3000/api/v1/jobs/dlq/<jobId>
 ```
 
+### Real-time events (SSE)
+
+```bash
+# Listen to all events in real time
+curl -N http://localhost:3000/api/v1/events
+
+# Filter by type
+curl -N "http://localhost:3000/api/v1/events?type=book:upserted"
+curl -N "http://localhost:3000/api/v1/events?type=story:upserted"
+```
 ### Books
 
 ```bash
@@ -282,6 +292,18 @@ curl http://localhost:3000/api/v1/jobs/dlq
 | `hn_stories` | `hn_item_id` | Upserted on conflict by HN item ID |
 
 Migrations are managed with Knex.js and live in `src/db/migrations/`.
+
+---
+
+## Bonus features
+
+| Feature | Endpoint |
+|---|---|
+| Bull Board dashboard | `/admin/queues` (basic auth: `admin` / `admin`) |
+| OpenAPI 3.1 + Swagger UI | `/api/docs` |
+| Prometheus metrics | `/metrics` |
+| Server-Sent Events (CDC) | `/api/v1/events` |
+| Playwright headless fallback | Activates automatically on CAPTCHA detection |
 
 ---
 
