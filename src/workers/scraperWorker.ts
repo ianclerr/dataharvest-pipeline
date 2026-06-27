@@ -1,5 +1,5 @@
 import { Worker, Job } from "bullmq";
-import { rawQueue } from "../queue/queues";
+import { rawQueue, connection } from "../queue/queues";
 import {
   SCRAPER_JOB_OPTS,
   scraperBackoffDelay,
@@ -11,10 +11,6 @@ import { moveToDLQ } from "../queue/dlq";
 import { parseJobDescriptor, JobDescriptor } from "../scheduler/jobFactory";
 import { markJobRunning } from "../db/jobStatus";
 import logger from "../logger";
-
-const connection = {
-  url: process.env.REDIS_URL || "redis://localhost:6379",
-};
 
 const concurrency = Number(process.env.SCRAPER_CONCURRENCY) || 3;
 
@@ -49,8 +45,9 @@ export function startScraperWorker() {
     {
       connection,
       concurrency,
-      limiter: { max: concurrency, duration: 1000 },
       settings: {
+        // BullMQ solo invoca backoffStrategy cuando SCRAPER_JOB_OPTS.backoff.type
+        // es 'custom' — con 'exponential' usaría su propia fórmula sin nuestro cap de 30s.
         backoffStrategy: scraperBackoffDelay,
       },
     }
@@ -81,6 +78,12 @@ export function startScraperWorker() {
         "Job failed, will retry"
       );
     }
+  });
+
+  // Sin este listener, un EventEmitter que emite 'error' sin oyentes (p. ej.
+  // un fallo de conexión a Redis) termina el proceso con una excepción no capturada.
+  worker.on("error", (err) => {
+    logger.error({ module: "scraperWorker", err: err.message }, "Worker error");
   });
 
   logger.info({ module: "scraperWorker" }, "Scraper worker started");

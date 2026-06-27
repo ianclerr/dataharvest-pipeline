@@ -20,6 +20,7 @@ export async function up(knex: Knex): Promise<void> {
     t.boolean("available");
     t.text("description").nullable();
     t.integer("num_reviews");
+    t.text("product_url").nullable();
     t.timestamp("scraped_at", { useTz: true }).defaultTo(knex.fn.now());
   });
 

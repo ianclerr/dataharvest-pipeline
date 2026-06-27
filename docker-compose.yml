@@ -29,9 +29,11 @@ services:
     build: .
     ports:
       - "3000:3000"
-    command: sh -c "npx knex migrate:latest --knexfile knexfile.ts && node dist/index.js"
+    command: sh -c "npx tsx ./node_modules/knex/bin/cli.js migrate:latest --knexfile knexfile.ts && node dist/index.js"
     environment:
       PORT: 3000
+      ADMIN_USER: admin
+      ADMIN_PASSWORD: admin
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/dataharvest
       REDIS_URL: redis://redis:6379
@@ -42,6 +44,8 @@ services:
       REQUEST_TIMEOUT_MS: 10000
       BOOKS_CRON: "0 2 * * *"
       HN_CRON: "*/15 * * * *"
+      LOG_LEVEL: info
+      PLAYWRIGHT_FALLBACK_ENABLED: "true"
     depends_on:
       postgres:
         condition: service_healthy

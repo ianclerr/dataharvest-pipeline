@@ -1,0 +1,409 @@
+{
+  "info": {
+    "_postman_id": "dataharvest-pipeline-v1",
+    "name": "DataHarvest Pipeline",
+    "description": "REST API collection for the DataHarvest Pipeline Service — DataHarvest Inc. Technical Assessment",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "jobId",
+      "value": "",
+      "type": "string",
+      "description": "Set this after triggering a job via POST /jobs/trigger"
+    },  
+    {
+      "key": "dlqJobId",
+      "value": "",
+      "type": "string",
+      "description": "Set this after inspecting the DLQ via GET /jobs/dlq"
+    },
+    {
+      "key": "upc",
+      "value": "",
+      "type": "string",
+      "description": "Set this from a book returned by GET /books"
+    },
+    {
+      "key": "hnItemId",
+      "value": "",
+      "type": "string",
+      "description": "Set this from a story returned by GET /stories"
+    }
+  ],
+  "item": [
+    {
+      "name": "Jobs",
+      "item": [
+        {
+          "name": "Trigger Books Scrape Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"books\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/jobs/trigger",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "jobs", "trigger"]
+            },
+            "description": "Manually trigger a scrape job for Books to Scrape (priority 2 — normal)."
+          }
+        },
+        {
+          "name": "Trigger Hacker News Scrape Job",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"hackernews\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/jobs/trigger",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "jobs", "trigger"]
+            },
+            "description": "Manually trigger a scrape job for Hacker News Newest (priority 1 — high)."
+          }
+        },
+        {
+          "name": "List All Jobs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/jobs",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "jobs"]
+            },
+            "description": "List all scrape jobs. Default limit 20, offset 0."
+          }
+        },
+        {
+          "name": "List Jobs — Filter by Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/jobs?status=done",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "jobs"],
+              "query": [
+                { "key": "status", "value": "done", "description": "pending | processing | done | failed" }
+              ]
+            },
+            "description": "Filter jobs by status. Valid values: pending, processing, done, failed."
+          }
+        },
+        {
+          "name": "List Jobs — Filter by Source",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/jobs?source=books",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "jobs"],
+              "query": [
+                { "key": "source", "value": "books", "description": "books | hackernews" }
+              ]
+            },
+            "description": "Filter jobs by source."
+          }
+        },
+        {
+          "name": "List Jobs — Filter by Status and Source",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/jobs?status=done&source=books",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "jobs"],
+              "query": [
+                { "key": "status", "value": "done" },
+                { "key": "source", "value": "books" }
+              ]
+            },
+            "description": "Filter jobs by both status and source."
+          }
+        },
+        {
+          "name": "Get Single Job",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/jobs/{{jobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "jobs", "{{jobId}}"]
+            },
+            "description": "Get single job detail including error message if failed. Set the jobId variable first."
+          }
+        },
+        {
+          "name": "Inspect Dead-Letter Queue",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/jobs/dlq",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "jobs", "dlq"]
+            },
+            "description": "Inspect the last 50 entries in the dead-letter queue (jobs that exhausted all retries)."
+          }
+        },
+        {
+          "name": "Retry DLQ Job",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/jobs/dlq/{{dlqJobId}}/retry",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "jobs", "dlq", "{{dlqJobId}}", "retry"]
+            },
+            "description": "Re-queue a DLQ job for reprocessing. Set the dlqJobId variable first."
+          }
+        },
+        {
+          "name": "Delete DLQ Job",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/jobs/dlq/{{dlqJobId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "jobs", "dlq", "{{dlqJobId}}"]
+            },
+            "description": "Remove a specific job from the DLQ. Set the dlqJobId variable first."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Books",
+      "item": [
+        {
+          "name": "List All Books",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books"]
+            },
+            "description": "List all scraped books. Default limit 20, page 1."
+          }
+        },
+        {
+          "name": "Filter Books by Category",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books?category=Mystery",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books"],
+              "query": [
+                { "key": "category", "value": "Mystery" }
+              ]
+            },
+            "description": "Filter books by category name (case-sensitive)."
+          }
+        },
+        {
+          "name": "Filter Books by Minimum Rating",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books?minRating=4",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books"],
+              "query": [
+                { "key": "minRating", "value": "4", "description": "1–5" }
+              ]
+            },
+            "description": "Filter books with rating >= minRating (1–5)."
+          }
+        },
+        {
+          "name": "Filter Books — Combined with Pagination",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books?category=Mystery&minRating=3&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books"],
+              "query": [
+                { "key": "category", "value": "Mystery" },
+                { "key": "minRating", "value": "3" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10", "description": "Max 100" }
+              ]
+            },
+            "description": "Combined filters with pagination. limit is capped at 100."
+          }
+        },
+        {
+          "name": "Get Single Book by UPC",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/books/{{upc}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "books", "{{upc}}"]
+            },
+            "description": "Get a single book by its UPC. Set the upc variable first."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stories",
+      "item": [
+        {
+          "name": "List All Stories",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stories"]
+            },
+            "description": "List all scraped HN stories. Default limit 20, page 1."
+          }
+        },
+        {
+          "name": "Filter Stories by Type — story",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stories?type=story",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stories"],
+              "query": [
+                { "key": "type", "value": "story", "description": "story | ask | show | job" }
+              ]
+            },
+            "description": "Filter stories by type: story."
+          }
+        },
+        {
+          "name": "Filter Stories by Type — ask",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stories?type=ask",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stories"],
+              "query": [
+                { "key": "type", "value": "ask" }
+              ]
+            },
+            "description": "Filter stories by type: ask (Ask HN posts)."
+          }
+        },
+        {
+          "name": "Filter Stories by Type — show",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stories?type=show",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stories"],
+              "query": [
+                { "key": "type", "value": "show" }
+              ]
+            },
+            "description": "Filter stories by type: show (Show HN posts)."
+          }
+        },
+        {
+          "name": "Filter Stories by Minimum Score",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stories?minScore=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stories"],
+              "query": [
+                { "key": "minScore", "value": "5" }
+              ]
+            },
+            "description": "Filter stories with score >= minScore."
+          }
+        },
+        {
+          "name": "Filter Stories — Combined with Pagination",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stories?type=story&minScore=3&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stories"],
+              "query": [
+                { "key": "type", "value": "story" },
+                { "key": "minScore", "value": "3" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10", "description": "Max 100" }
+              ]
+            },
+            "description": "Combined filters with pagination. limit is capped at 100."
+          }
+        },
+        {
+          "name": "Get Single Story by HN Item ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stories/{{hnItemId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "stories", "{{hnItemId}}"]
+            },
+            "description": "Get a single HN story by its item ID. Set the hnItemId variable first."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Observability",
+      "item": [
+        {
+          "name": "Queue Metrics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "metrics"]
+            },
+            "description": "Queue metrics: depth, throughput, error rate, average processing latency per queue. Last successful run timestamp per source."
+          }
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "health"]
+            },
+            "description": "Health check: DB connection, Redis connectivity, and queue job counts."
+          }
+        }
+      ]
+    }
+  ]
+}

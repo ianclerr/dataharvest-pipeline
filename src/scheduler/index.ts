@@ -21,8 +21,20 @@ export function startScheduler() {
   const booksCron = process.env.BOOKS_CRON || "0 2 * * *";
   const hnCron = process.env.HN_CRON || "*/15 * * * *";
 
-  cron.schedule(booksCron, () => scheduleJob("books", 2));
-  cron.schedule(hnCron, () => scheduleJob("hackernews", 1));
+  // node-cron no propaga errores de la callback: si scheduleJob() rechaza,
+  // el .catch() asegura que el fallo quede registrado en el log en vez de
+  // perderse silenciosamente.
+  cron.schedule(booksCron, () => {
+    scheduleJob("books", 2).catch((err) => {
+      logger.error({ module: "scheduler", source: "books", err: err.message }, "Failed to schedule job");
+    });
+  });
+
+  cron.schedule(hnCron, () => {
+    scheduleJob("hackernews", 1).catch((err) => {
+      logger.error({ module: "scheduler", source: "hackernews", err: err.message }, "Failed to schedule job");
+    });
+  });
 
   logger.info({ module: "scheduler" }, "Scheduler started");
 }

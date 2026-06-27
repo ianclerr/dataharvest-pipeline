@@ -37,9 +37,16 @@ router.post("/trigger", async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const { status, source, limit = 20, offset = 0 } = req.query;
-    const query = db("scrape_jobs").orderBy("triggered_at", "desc")
-      .limit(Number(limit)).offset(Number(offset));
+    const { status, source } = req.query;
+    // Sanitizar limit y offset para evitar cargar toda la base de datos con ?limit=999999
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const offset = Number(req.query.offset) || (page - 1) * limit;
+
+    const query = db("scrape_jobs")
+      .orderBy("triggered_at", "desc")
+      .limit(limit)
+      .offset(offset);
 
     if (status) query.where("status", status);
     if (source) query.where("source", source);
@@ -54,7 +61,13 @@ router.get("/", async (req, res) => {
 
 router.get("/dlq", async (_req, res) => {
   try {
-    const jobs = await dlqQueue.getJobs(["waiting", "failed"], 0, 49);
+    // Los jobs en DLQ terminan en estado "completed" porque se agregan con add()
+    // y removeOnComplete está deshabilitado en dlqQueue
+    const jobs = await dlqQueue.getJobs(
+      ["waiting", "active", "completed", "failed"],
+      0,
+      49
+    );
     return res.json(jobs.map((j) => ({ id: j.id, data: j.data })));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

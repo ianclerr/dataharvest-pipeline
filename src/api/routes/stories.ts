@@ -5,11 +5,14 @@ const router = Router();
 
 router.get("/", async (req, res) => {
   try {
-    const { type, minScore, page = 1, limit = 20 } = req.query;
-    const offset = (Number(page) - 1) * Number(limit);
+    // Sanitizamos page y limit para evitar queries masivas con valores arbitrarios
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+    const { type, minScore } = req.query;
 
     const query = db("hn_stories").orderBy("scraped_at", "desc")
-      .limit(Number(limit)).offset(offset);
+      .limit(limit).offset(offset);
 
     if (type) query.where("story_type", type);
     if (minScore) query.where("score", ">=", Number(minScore));

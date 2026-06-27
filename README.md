@@ -85,7 +85,7 @@ cp .env.example .env
 # Edit .env with your DB and Redis credentials
 
 # 4. Run migrations (first time only)
-docker compose exec app npx knex migrate:latest --knexfile knexfile.ts
+npm run migrate
 
 # 5. Start the application
 npx tsx src/index.ts
@@ -112,13 +112,20 @@ cd dataharvest-pipeline
 cp .env.example .env
 
 # 3. Build and start all services
+# Migrations run automatically on container start (see the app service's
+# `command` in docker-compose.yml), so there is no separate manual step.
 docker compose up --build
-
-# 4. Run migrations (first time only)
-docker compose exec app npx knex migrate:latest --knexfile knexfile.ts
 ```
 
 The server will be available at `http://localhost:3000`.
+
+If you add a new migration later and want to apply it without restarting the
+stack, run it through `tsx` so the TypeScript migration files are transpiled
+on the fly (the production image doesn't install `ts-node`):
+
+```bash
+docker compose exec app npx tsx ./node_modules/knex/bin/cli.js migrate:latest --knexfile knexfile.ts
+```
 
 To stop:
 

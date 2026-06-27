@@ -6,11 +6,14 @@ const router = Router();
 // GET /api/v1/books
 router.get("/", async (req, res) => {
   try {
-    const { category, minRating, page = 1, limit = 20 } = req.query;
-    const offset = (Number(page) - 1) * Number(limit);
+    // Sanitizamos page y limit para evitar queries masivas con valores arbitrarios
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+    const { category, minRating } = req.query;
 
     const query = db("books").orderBy("scraped_at", "desc")
-      .limit(Number(limit)).offset(offset);
+      .limit(limit).offset(offset);
 
     if (category) query.where("category", category);
     if (minRating) query.where("rating", ">=", Number(minRating));

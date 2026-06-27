@@ -2,11 +2,15 @@ import db from "../db/client";
 import { Book } from "../transformer/bookTransformer";
 import { HNStory } from "../transformer/hnTransformer";
 import logger from "../logger";
+import { sseEmitter } from "../events/sseEmitter";
 
 export async function upsertBooks(books: Book[]) {
-  for (const book of books) {
-    await db("books")
-      .insert({
+  if (books.length === 0) return;
+
+  // Batch INSERT en lugar de N queries individuales
+  await db("books")
+    .insert(
+      books.map((book) => ({
         upc: book.upc,
         title: book.title,
         price_gbp: book.price_gbp,
@@ -15,18 +19,24 @@ export async function upsertBooks(books: Book[]) {
         available: book.available,
         description: book.description,
         num_reviews: book.numReviews,
+        product_url: book.product_url,
         scraped_at: new Date(),
-      })
-      .onConflict("upc")
-      .merge();
-  }
+      }))
+    )
+    .onConflict("upc")
+    .merge();
+    for (const book of books) sseEmitter.emitBook(book);
+
   logger.info({ module: "upsert" }, `Upserted ${books.length} books`);
 }
 
 export async function upsertStories(stories: HNStory[]) {
-  for (const story of stories) {
-    await db("hn_stories")
-      .insert({
+  if (stories.length === 0) return;
+
+  // Batch INSERT en lugar de N queries individuales
+  await db("hn_stories")
+    .insert(
+      stories.map((story) => ({
         hn_item_id: story.hn_item_id,
         title: story.title,
         url: story.url,
@@ -35,9 +45,11 @@ export async function upsertStories(stories: HNStory[]) {
         comment_count: story.comment_count,
         story_type: story.story_type,
         scraped_at: new Date(),
-      })
-      .onConflict("hn_item_id")
-      .merge();
-  }
+      }))
+    )
+    .onConflict("hn_item_id")
+    .merge();
+    for (const story of stories) sseEmitter.emitStory(story);
+
   logger.info({ module: "upsert" }, `Upserted ${stories.length} stories`);
 }

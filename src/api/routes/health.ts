@@ -1,21 +1,25 @@
 import { Router } from "express";
-import { createClient } from "redis";
+import Redis from "ioredis";
 import db from "../../db/client";
-import { pendingQueue, rawQueue, processedQueue } from "../../queue/queues";
+import { pendingQueue, rawQueue, processedQueue, connection } from "../../queue/queues";
 import logger from "../../logger";
 
 const router = Router();
 
+// Usamos ioredis directamente en lugar de (queue as any).client.ping(),
+// que accede a internals no documentados de BullMQ y puede romperse entre versiones.
+const redisClient = new Redis(connection.url);
+
+// Sin este listener, ioredis cae a su propio fallback de consola (no estructurado)
+// cada vez que la conexión falla; lo enrutamos al logger para mantener logs consistentes.
+redisClient.on("error", (err) => {
+  logger.error({ module: "health", err: err.message }, "Redis health-check client error");
+});
+
 router.get("/", async (_req, res) => {
   try {
     await db.raw("SELECT 1");
-
-    const client = createClient({
-      url: process.env.REDIS_URL || "redis://localhost:6379",
-    });
-    await client.connect();
-    await client.ping();
-    await client.disconnect();
+    await redisClient.ping();
 
     const [pending, raw, processed] = await Promise.all([
       pendingQueue.getJobCounts(),

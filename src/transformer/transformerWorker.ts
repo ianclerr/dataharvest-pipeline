@@ -1,15 +1,11 @@
 import { Worker, Job } from "bullmq";
-import { processedQueue } from "../queue/queues";
+import { processedQueue, connection } from "../queue/queues";
 import { PERSISTER_JOB_OPTS, TRANSFORMER_JOB_OPTS } from "../queue/jobOptions";
 import { transformBook } from "./bookTransformer";
 import { transformHNStory } from "./hnTransformer";
 import { moveToDLQ } from "../queue/dlq";
 import { parseJobDescriptor, JobDescriptor } from "../scheduler/jobFactory";
 import logger from "../logger";
-
-const connection = {
-  url: process.env.REDIS_URL || "redis://localhost:6379",
-};
 
 const concurrency = Number(process.env.TRANSFORMER_CONCURRENCY) || 5;
 
@@ -25,7 +21,14 @@ export function startTransformerWorker() {
         "Transforming job"
       );
 
+      // Los payloads vacíos del scheduler llegan como {}, solo arrays son válidos aquí
+      if (!Array.isArray(payload)) {
+        throw new Error(
+          `Payload must be an array, got: ${typeof payload}`
+        );
+      }
       const items = payload as unknown[];
+
       let transformed;
 
       if (source === "books") {
@@ -78,6 +81,12 @@ export function startTransformerWorker() {
         "Transform job failed, will retry"
       );
     }
+  });
+
+  // Sin este listener, un EventEmitter que emite 'error' sin oyentes (p. ej.
+  // un fallo de conexión a Redis) termina el proceso con una excepción no capturada.
+  worker.on("error", (err) => {
+    logger.error({ module: "transformerWorker", err: err.message }, "Worker error");
   });
 
   logger.info({ module: "transformerWorker" }, "Transformer worker started");

@@ -1,6 +1,8 @@
 export const SCRAPER_JOB_OPTS = {
-  attempts: 3,
-  backoff: { type: "exponential" as const, delay: 2000 },
+  // 1 intento original + 3 retries = "retry up to 3 times" según el spec
+  attempts: 4,
+  // Debe ser 'custom' para que BullMQ invoque el backoffStrategy del worker
+  backoff: { type: "custom" as const, delay: 2000 },
 };
 
 export const TRANSFORMER_JOB_OPTS = {

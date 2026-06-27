@@ -8,11 +8,18 @@ const router = Router();
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
+// Límite razonable por cola — evita cargar cientos de Job objects pesados.
+// Trade-off documentado: en alta carga puede subestimar métricas de la última hora.
+const METRICS_JOB_FETCH_LIMIT = 100;
+
 async function getQueueMetricsLastHour(queue: Queue, name: string) {
   const oneHourAgo = Date.now() - ONE_HOUR_MS;
+
+  // Limitamos a 100 jobs recientes por cola para no sobrecargar Redis en consultas de métricas
+  // Los jobs más recientes están al final del rango, por eso start=0
   const [completedJobs, failedJobs, counts] = await Promise.all([
-    queue.getJobs(["completed"], 0, 500),
-    queue.getJobs(["failed"], 0, 500),
+    queue.getJobs(["completed"], 0, METRICS_JOB_FETCH_LIMIT - 1),
+    queue.getJobs(["failed"], 0, METRICS_JOB_FETCH_LIMIT - 1),
     queue.getJobCounts(),
   ]);
 
@@ -33,11 +40,8 @@ async function getQueueMetricsLastHour(queue: Queue, name: string) {
       : null;
 
   const total = recentCompleted.length + recentFailed.length;
-  const errorRate = total > 0
-    ? parseFloat((recentFailed.length / total).toFixed(4))
-    : 0;
-
-  const throughput = recentCompleted.length;
+  const errorRate =
+    total > 0 ? parseFloat((recentFailed.length / total).toFixed(4)) : 0;
 
   return {
     name,
@@ -46,7 +50,7 @@ async function getQueueMetricsLastHour(queue: Queue, name: string) {
       completed: recentCompleted.length,
       failed: recentFailed.length,
       pending: (counts.waiting ?? 0) + (counts.active ?? 0),
-      throughput,
+      throughput: recentCompleted.length,
       errorRate,
       averageProcessingLatencyMs,
     },
@@ -70,7 +74,8 @@ router.get("/", async (_req, res) => {
 
     const lastSuccessfulRunBySource: Record<string, string | Date> = {};
     for (const row of lastRuns) {
-      lastSuccessfulRunBySource[row.source as string] = row.lastSuccessfulRun as string | Date;
+      lastSuccessfulRunBySource[row.source as string] =
+        row.lastSuccessfulRun as string | Date;
     }
 
     const allLatencies = [
@@ -81,14 +86,19 @@ router.get("/", async (_req, res) => {
 
     const averageProcessingLatencyMs =
       allLatencies.length > 0
-        ? Math.round(allLatencies.reduce((sum, ms) => sum + ms, 0) / allLatencies.length)
+        ? Math.round(
+            allLatencies.reduce((sum, ms) => sum + ms, 0) / allLatencies.length
+          )
         : null;
 
     return res.json({
       queues: {
         "scrape:pending": { depth: pending.depth, lastHour: pending.lastHour },
         "scrape:raw": { depth: raw.depth, lastHour: raw.lastHour },
-        "scrape:processed": { depth: processed.depth, lastHour: processed.lastHour },
+        "scrape:processed": {
+          depth: processed.depth,
+          lastHour: processed.lastHour,
+        },
         "scrape:dlq": { depth: dlq.depth, lastHour: dlq.lastHour },
       },
       averageProcessingLatencyMs,
